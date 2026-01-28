@@ -17,14 +17,11 @@ reg [2:0] copi_sync, nCS_sync, SCLK_sync; // copi, nCS, SCLK passed through 2ff
 reg [4:0] bit_counter; // the current bit in the transaction
 reg [15:0] transaction_data; // the data used in the transaction
 // synced data
-wire SCLK_risingedge, SCLK_fallingedge;
-wire SCLK_synced, nCS_down, copi_synced;
-assign SCLK_synced = SCLK_sync[2];
+wire SCLK_risingedge, nCS_fallingedge;
+wire nCS_down, copi_synced;
 assign copi_synced = copi_sync[2];
 // edge detection
 assign SCLK_risingedge = (SCLK_sync[2:1] == 2'b01);
-assign SCLK_fallingedge = (SCLK_sync[2:1] == 2'b10);
-assign nCS_risingedge = (nCS_sync[2:1] == 2'b01); // unused because I flag transaction finish when the bit counter reaches 16
 assign nCS_fallingedge = (nCS_sync[2:1] == 2'b10);
 assign nCS_down = (nCS_sync[2:1] == 2'b00);
 always @(posedge clk or negedge rst_n) begin
@@ -49,7 +46,7 @@ always @(posedge clk or negedge rst_n) begin
             transaction_data <= 0;
         end else if (nCS_down && SCLK_risingedge) begin // shift transaction data
             if (bit_counter < 5'b10000) begin // while it is running
-                transaction_data = {transaction_data[14:0], copi_synced};
+                transaction_data <= {transaction_data[14:0], copi_synced};
                 bit_counter <= bit_counter + 1;
             end
         end
