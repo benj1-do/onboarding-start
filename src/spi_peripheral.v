@@ -17,12 +17,13 @@ reg [2:0] copi_sync, nCS_sync, SCLK_sync; // copi, nCS, SCLK passed through 2ff
 reg [4:0] bit_counter; // the current bit in the transaction
 reg [15:0] transaction_data; // the data used in the transaction
 // synced data
-wire SCLK_risingedge, nCS_fallingedge;
+wire SCLK_risingedge, nCS_fallingedge, nCS_risingedge;
 wire nCS_down, copi_synced;
 assign copi_synced = copi_sync[2];
 // edge detection
 assign SCLK_risingedge = (SCLK_sync[2:1] == 2'b01);
 assign nCS_fallingedge = (nCS_sync[2:1] == 2'b10);
+assign nCS_risingedge = (nCS_sync[2:1] == 2'b01);
 assign nCS_down = (nCS_sync[2:1] == 2'b00);
 always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -51,7 +52,7 @@ always @(posedge clk or negedge rst_n) begin
             end
         end
 
-        if ((bit_counter[4] == 1) && (transaction_data[15] == 1)) begin // if write and also transaction finished
+        if (nCS_risingedge && (bit_counter[4] == 1) && (transaction_data[15] == 1)) begin // if write and also transaction finished
             case (transaction_data[14:8])
                 7'd0: en_reg_out_7_0 <= transaction_data[7:0];
                 7'd1: en_reg_out_15_8 <= transaction_data[7:0];
