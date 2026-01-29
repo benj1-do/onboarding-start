@@ -10,11 +10,11 @@ from cocotb.types import LogicArray
 
 async def await_half_sclk(dut):
     """Wait for the SCLK signal to go high or low."""
-    start_time = cocotb.utils.get_sim_time(unit="ns")
+    start_time = cocotb.utils.get_sim_time(units="ns")
     while True:
         await ClockCycles(dut.clk, 1)
         # Wait for half of the SCLK period (10 us)
-        if (start_time + 100*100*0.5) < cocotb.utils.get_sim_time(unit="ns"):
+        if (start_time + 100*100*0.5) < cocotb.utils.get_sim_time(units="ns"):
             break
     return
 
@@ -88,7 +88,7 @@ async def test_spi(dut):
     dut._log.info("Start SPI test")
 
     # Set the clock period to 100 ns (10 MHz)
-    clock = Clock(dut.clk, 100, unit="ns")
+    clock = Clock(dut.clk, 100, units="ns")
     cocotb.start_soon(clock.start())
 
     # Reset
@@ -152,7 +152,7 @@ async def test_spi(dut):
 @cocotb.test()
 async def test_pwm_freq(dut):
     # Write your test here
-    clock = Clock(dut.clk, 100, unit="ns")
+    clock = Clock(dut.clk, 100, units="ns")
     cocotb.start_soon(clock.start())
 
     # Reset
@@ -186,9 +186,9 @@ async def test_pwm_freq(dut):
     while (t_risingedge1 == 0) or (t_risingedge2 == 0): # while loop until both times are recorded
         if (dut.uo_out.value and not prev_uo_out): # if the new one is 1 and the old one is 0
             if (t_risingedge1 == 0):
-                t_risingedge1 = cocotb.utils.get_sim_time(unit="ns")
+                t_risingedge1 = cocotb.utils.get_sim_time(units="ns")
             elif (t_risingedge2 == 0): # once the first rising edge is detected, time the second rising edge
-                t_risingedge2 = cocotb.utils.get_sim_time(unit="ns")
+                t_risingedge2 = cocotb.utils.get_sim_time(units="ns")
         prev_uo_out = dut.uo_out.value
         await ClockCycles(dut.clk, 1) # await 1 clock cycle
 
@@ -204,7 +204,7 @@ async def test_pwm_freq(dut):
 @cocotb.test()
 async def test_pwm_duty(dut):
     # Write your test here
-    clock = Clock(dut.clk, 100, unit="ns")
+    clock = Clock(dut.clk, 100, units="ns")
     cocotb.start_soon(clock.start())
 
     # period is 332800 ns from pwm_freq.
