@@ -152,8 +152,53 @@ async def test_spi(dut):
 @cocotb.test()
 async def test_pwm_freq(dut):
     # Write your test here
-    dut._log.info("PWM Frequency test completed successfully")
+    clock = Clock(dut.clk, 100, units="ns")
+    cocotb.start_soon(clock.start())
 
+    # Reset
+    dut._log.info("Reset")
+    dut.ena.value = 1
+    ncs = 1
+    bit = 0
+    sclk = 0
+    dut.ui_in.value = ui_in_logicarray(ncs, bit, sclk)
+    dut.rst_n.value = 0
+    await ClockCycles(dut.clk, 5)
+    dut.rst_n.value = 1
+    await ClockCycles(dut.clk, 5)
+
+    # start pwm
+    dut._log.info("Write transaction, address 0x00, data 0x01")
+    await send_spi_transaction(dut, 1, 0x00, 0x01)  # Write transaction
+    await ClockCycles(dut.clk, 30000)
+    dut._log.info("Write transaction, address 0x02, data 0x01")
+    await send_spi_transaction(dut, 1, 0x02, 0x01)  # Write transaction
+    await ClockCycles(dut.clk, 30000)
+    dut._log.info("Write transaction, address 0x04, data 0x01")
+    await send_spi_transaction(dut, 1, 0x04, 0x01)  # Write transaction
+    await ClockCycles(dut.clk, 30000)
+
+    # RisingEdge doesn't work for dut.uo_out. This is a different method
+
+    t_risingedge1 = 0
+    t_risingedge2 = 0
+    prev_uo_out = 0
+    while (t_risingedge1 == 0) or (t_risingedge2 == 0):
+        if (dut.uo_out.value and not prev_uo_out): # if the new one is 1 and the old one is 0
+            if (t_risingedge1 == 0):
+                t_risingedge1 = cocotb.utils.get_sim_time(units="ns")
+            elif (t_risingedge2 == 0): # once the first rising edge is detected, time the second rising edge
+                t_risingedge2 = cocotb.utils.get_sim_time(units="ns")
+        prev_uo_out = dut.uo_out.value
+        await ClockCycles(dut.clk, 1) # await 1 clock cycle
+
+    period = t_risingedge2 - t_risingedge1
+    dut._log.info(f"Period is {period} ns")
+    freq = 1000000000/period
+    dut._log.info(f"Frequency is {freq} Hz")
+    await ClockCycles(dut.clk, 30000)
+    assert ((freq < 3030) and (freq > 2970)), f"Frequency is {freq}, which is outside the range"
+    dut._log.info("PWM Frequency test completed successfully")
 
 @cocotb.test()
 async def test_pwm_duty(dut):
