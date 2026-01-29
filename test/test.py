@@ -10,11 +10,11 @@ from cocotb.types import LogicArray
 
 async def await_half_sclk(dut):
     """Wait for the SCLK signal to go high or low."""
-    start_time = cocotb.utils.get_sim_time(units="ns")
+    start_time = cocotb.utils.get_sim_time(unit="ns")
     while True:
         await ClockCycles(dut.clk, 1)
         # Wait for half of the SCLK period (10 us)
-        if (start_time + 100*100*0.5) < cocotb.utils.get_sim_time(units="ns"):
+        if (start_time + 100*100*0.5) < cocotb.utils.get_sim_time(unit="ns"):
             break
     return
 
@@ -88,7 +88,7 @@ async def test_spi(dut):
     dut._log.info("Start SPI test")
 
     # Set the clock period to 100 ns (10 MHz)
-    clock = Clock(dut.clk, 100, units="ns")
+    clock = Clock(dut.clk, 100, unit="ns")
     cocotb.start_soon(clock.start())
 
     # Reset
@@ -152,7 +152,7 @@ async def test_spi(dut):
 @cocotb.test()
 async def test_pwm_freq(dut):
     # Write your test here
-    clock = Clock(dut.clk, 100, units="ns")
+    clock = Clock(dut.clk, 100, unit="ns")
     cocotb.start_soon(clock.start())
 
     # Reset
@@ -178,17 +178,17 @@ async def test_pwm_freq(dut):
     await send_spi_transaction(dut, 1, 0x04, 0x01)  # Write transaction
     await ClockCycles(dut.clk, 30000)
 
-    # RisingEdge doesn't work for dut.uo_out. This is a different method
+    # I couldn't get RisingEdge to work for dut.uo_out, due to Type errors and packing issues. This is a different method
 
     t_risingedge1 = 0
     t_risingedge2 = 0
     prev_uo_out = 0
-    while (t_risingedge1 == 0) or (t_risingedge2 == 0):
+    while (t_risingedge1 == 0) or (t_risingedge2 == 0): # while loop until both times are recorded
         if (dut.uo_out.value and not prev_uo_out): # if the new one is 1 and the old one is 0
             if (t_risingedge1 == 0):
-                t_risingedge1 = cocotb.utils.get_sim_time(units="ns")
+                t_risingedge1 = cocotb.utils.get_sim_time(unit="ns")
             elif (t_risingedge2 == 0): # once the first rising edge is detected, time the second rising edge
-                t_risingedge2 = cocotb.utils.get_sim_time(units="ns")
+                t_risingedge2 = cocotb.utils.get_sim_time(unit="ns")
         prev_uo_out = dut.uo_out.value
         await ClockCycles(dut.clk, 1) # await 1 clock cycle
 
@@ -199,8 +199,53 @@ async def test_pwm_freq(dut):
     await ClockCycles(dut.clk, 30000)
     assert ((freq < 3030) and (freq > 2970)), f"Frequency is {freq}, which is outside the range"
     dut._log.info("PWM Frequency test completed successfully")
+    return period
 
 @cocotb.test()
 async def test_pwm_duty(dut):
     # Write your test here
+    clock = Clock(dut.clk, 100, unit="ns")
+    cocotb.start_soon(clock.start())
+
+    # period is 332800 ns from pwm_freq.
+    # Therefore, the amount of clock cycles I should test for is 332800 ns / 100 ns = 3328 cycles
+    period_cycles = 3328
+    # Reset
+    dut._log.info("Reset")
+    dut.ena.value = 1
+    ncs = 1
+    bit = 0
+    sclk = 0
+    dut.ui_in.value = ui_in_logicarray(ncs, bit, sclk)
+    dut.rst_n.value = 0
+    await ClockCycles(dut.clk, 5)
+    dut.rst_n.value = 1
+    await ClockCycles(dut.clk, 5)
+
+    # start pwm
+    dut._log.info("Write transaction, address 0x00, data 0x01")
+    await send_spi_transaction(dut, 1, 0x00, 0x01)  # Turns on output
+    await ClockCycles(dut.clk, 30000)
+    dut._log.info("Write transaction, address 0x02, data 0x01")
+    await send_spi_transaction(dut, 1, 0x02, 0x01)  # Turns on PWM
+    await ClockCycles(dut.clk, 30000)
+    dut._log.info("Write transaction, address 0x04, data 0x01")
+
+    to_test = [0x00, 0x80, 0xFF] # 0x00 is 0%, 0x80 is 128 or 50%, 0xFF is 100%
+
+    for duty_test in to_test:
+
+        await send_spi_transaction(dut, 1, 0x04, duty_test) # sets PWM duty cycle to the ratio that is being tested
+        await ClockCycles(dut.clk, 30000)
+
+        high_cycles = 0
+        for _ in range(period_cycles): # number of cycles in a period
+            if (dut.uo_out.value): # if it is driven high
+                high_cycles = high_cycles + 1
+            await ClockCycles(dut.clk, 1)
+
+        duty_cycle = high_cycles / period_cycles * 100
+        dut._log.info(f"Duty Cycle is {duty_cycle} %")
+        await ClockCycles(dut.clk, 5)
+        assert (abs(duty_cycle - duty_test / 256 * 100) < 1), f"Duty cycle is {duty_cycle} %. Expected is {duty_test / 256 * 100} %"
     dut._log.info("PWM Duty Cycle test completed successfully")
