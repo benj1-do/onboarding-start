@@ -26,7 +26,7 @@ assign nCS_fallingedge = (nCS_sync[2:1] == 2'b10);
 assign nCS_risingedge = (nCS_sync[2:1] == 2'b01);
 assign nCS_down = (nCS_sync[2:1] == 2'b00);
 // transaction complete
-reg transaction_complete;
+reg transaction_complete, transaction_sent;
 always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
         copi_sync <= 3'b000;
@@ -39,6 +39,7 @@ always @(posedge clk or negedge rst_n) begin
         pwm_duty_cycle <= 8'h00;
         bit_counter <= 0;
         transaction_data <= 0;
+        transaction_sent <= 0;
     end else begin
         copi_sync <= {copi_sync[1:0], copi}; // 2ffs
         nCS_sync <= {nCS_sync[1:0], nCS};
@@ -48,6 +49,7 @@ always @(posedge clk or negedge rst_n) begin
             bit_counter <= 0;
             transaction_data <= 0;
             transaction_complete <= 0; // reset only on next negedge
+            transaction_sent <= 0;
         end else if (nCS_down && SCLK_risingedge && !transaction_complete) begin // shift transaction data
             if (bit_counter == 4'b1111) begin // while it is running
                 transaction_complete <= 1; // flag it as complete
@@ -57,7 +59,7 @@ always @(posedge clk or negedge rst_n) begin
             transaction_data <= {transaction_data[14:0], copi_synced};
         end
 
-        if (transaction_complete && transaction_data[15]) begin // if write and also transaction finished
+        if (!transaction_sent && transaction_complete && transaction_data[15]) begin // if write and also transaction finished
             case (transaction_data[14:8])
                 7'd0: en_reg_out_7_0 <= transaction_data[7:0];
                 7'd1: en_reg_out_15_8 <= transaction_data[7:0];
@@ -67,6 +69,7 @@ always @(posedge clk or negedge rst_n) begin
                 default: ;
                 // do nothing for the other addresses
             endcase
+            transaction_sent <= 1;
         end
     end
 end
