@@ -14,7 +14,7 @@ module spi_peripheral(
 );
 
 reg [2:0] copi_sync, nCS_sync, SCLK_sync; // copi, nCS, SCLK passed through 2ff
-reg [4:0] bit_counter; // the current bit in the transaction
+reg [3:0] bit_counter; // the current bit in the transaction
 reg [15:0] transaction_data; // the data used in the transaction
 // synced data
 wire SCLK_risingedge, nCS_fallingedge, nCS_risingedge;
@@ -25,6 +25,8 @@ assign SCLK_risingedge = (SCLK_sync[2:1] == 2'b01);
 assign nCS_fallingedge = (nCS_sync[2:1] == 2'b10);
 assign nCS_risingedge = (nCS_sync[2:1] == 2'b01);
 assign nCS_down = (nCS_sync[2:1] == 2'b00);
+// transaction complete
+reg transaction_complete;
 always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
         copi_sync <= 3'b000;
@@ -45,14 +47,17 @@ always @(posedge clk or negedge rst_n) begin
         if (nCS_fallingedge) begin // begin data capture
             bit_counter <= 0;
             transaction_data <= 0;
-        end else if (nCS_down && SCLK_risingedge) begin // shift transaction data
-            if (bit_counter < 5'b10000) begin // while it is running
-                transaction_data <= {transaction_data[14:0], copi_synced};
+            transaction_complete <= 0; // reset only on next negedge
+        end else if (nCS_down && SCLK_risingedge && !transaction_complete) begin // shift transaction data
+            if (bit_counter == 4'b1111) begin // while it is running
+                transaction_complete <= 1; // flag it as complete
+            end else begin
                 bit_counter <= bit_counter + 1;
             end
+            transaction_data <= {transaction_data[14:0], copi_synced};
         end
 
-        if (nCS_risingedge && (bit_counter[4] == 1) && (transaction_data[15] == 1)) begin // if write and also transaction finished
+        if (transaction_complete && transaction_data[15]) begin // if write and also transaction finished
             case (transaction_data[14:8])
                 7'd0: en_reg_out_7_0 <= transaction_data[7:0];
                 7'd1: en_reg_out_15_8 <= transaction_data[7:0];
