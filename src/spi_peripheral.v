@@ -24,7 +24,7 @@ assign copi_synced = copi_sync[2];
 assign SCLK_risingedge = (SCLK_sync[2:1] == 2'b01);
 assign nCS_fallingedge = (nCS_sync[2:1] == 2'b10);
 assign nCS_risingedge = (nCS_sync[2:1] == 2'b01);
-assign nCS_down = (nCS_sync[2:1] == 2'b00);
+assign nCS_down = ~nCS_sync[2];
 // transaction complete
 reg transaction_complete, transaction_sent;
 always @(posedge clk or negedge rst_n) begin
@@ -40,6 +40,7 @@ always @(posedge clk or negedge rst_n) begin
         bit_counter <= 0;
         transaction_data <= 0;
         transaction_sent <= 0;
+        transaction_complete <= 0;
     end else begin
         copi_sync <= {copi_sync[1:0], copi}; // 2ffs
         nCS_sync <= {nCS_sync[1:0], nCS};
