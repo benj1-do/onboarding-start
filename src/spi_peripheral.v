@@ -51,15 +51,20 @@ always @(posedge clk or negedge rst_n) begin
             transaction_data <= 0;
             transaction_complete <= 0; // reset only on next negedge
             transaction_sent <= 0;
-        end else if (nCS_down && SCLK_risingedge && !transaction_complete) begin // shift transaction data
-            if (bit_counter < 16) begin
-                bit_counter <= bit_counter + 1;
-            end
+        end
+
+        if (nCS_down && SCLK_risingedge && !transaction_complete) begin // shift transaction data
             transaction_data <= {transaction_data[14:0], copi_synced};
+            if (bit_counter == 5'd15) begin
+                transaction_complete <= 1;
+                bit_counter <= 0;
+            end else begin
+                bit_counter <= bit_counter + 5'd1;
+            end
         end
 
         if (nCS_risingedge) begin
-            transaction_complete <= (bit_counter == 16);
+            
         end
 
         if (!transaction_sent && transaction_complete && transaction_data[15]) begin // if write and also transaction finished
