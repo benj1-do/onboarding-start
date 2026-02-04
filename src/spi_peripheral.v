@@ -62,11 +62,11 @@ always @(posedge clk or negedge rst_n) begin
 
         if (!transaction_sent && transaction_complete && transaction_data[15]) begin // if write and also transaction finished
             case (transaction_data[14:8])
-                7'd0: en_reg_out_7_0 <= transaction_data[7:0];
-                7'd1: en_reg_out_15_8 <= transaction_data[7:0];
-                7'd2: en_reg_pwm_7_0 <= transaction_data[7:0];
-                7'd3: en_reg_pwm_15_8 <= transaction_data[7:0];
-                7'd4: pwm_duty_cycle <= transaction_data[7:0];
+                7'd0: en_reg_out_7_0 = transaction_data[7:0];
+                7'd1: en_reg_out_15_8 = transaction_data[7:0];
+                7'd2: en_reg_pwm_7_0 = transaction_data[7:0];
+                7'd3: en_reg_pwm_15_8 = transaction_data[7:0];
+                7'd4: pwm_duty_cycle = transaction_data[7:0];
                 default: ;
                 // do nothing for the other addresses
             endcase
