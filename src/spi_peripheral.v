@@ -14,7 +14,7 @@ module spi_peripheral(
 );
 
 reg [2:0] copi_sync, nCS_sync, SCLK_sync; // copi, nCS, SCLK passed through 2ff
-reg [3:0] bit_counter; // the current bit in the transaction
+reg [4:0] bit_counter; // the current bit in the transaction
 reg [15:0] transaction_data; // the data used in the transaction
 // synced data
 wire SCLK_risingedge, nCS_fallingedge, nCS_risingedge;
@@ -52,21 +52,23 @@ always @(posedge clk or negedge rst_n) begin
             transaction_complete <= 0; // reset only on next negedge
             transaction_sent <= 0;
         end else if (nCS_down && SCLK_risingedge && !transaction_complete) begin // shift transaction data
-            if (bit_counter == 4'b1111) begin // while it is running
-                transaction_complete <= 1; // flag it as complete
-            end else begin
+            if (bit_counter < 16) begin
                 bit_counter <= bit_counter + 1;
             end
             transaction_data <= {transaction_data[14:0], copi_synced};
         end
 
+        if (nCS_risingedge) begin
+            transaction_complete <= (bit_counter == 16);
+        end
+
         if (!transaction_sent && transaction_complete && transaction_data[15]) begin // if write and also transaction finished
             case (transaction_data[14:8])
-                7'd0: en_reg_out_7_0 = transaction_data[7:0];
-                7'd1: en_reg_out_15_8 = transaction_data[7:0];
-                7'd2: en_reg_pwm_7_0 = transaction_data[7:0];
-                7'd3: en_reg_pwm_15_8 = transaction_data[7:0];
-                7'd4: pwm_duty_cycle = transaction_data[7:0];
+                7'd0: en_reg_out_7_0 <= transaction_data[7:0];
+                7'd1: en_reg_out_15_8 <= transaction_data[7:0];
+                7'd2: en_reg_pwm_7_0 <= transaction_data[7:0];
+                7'd3: en_reg_pwm_15_8 <= transaction_data[7:0];
+                7'd4: pwm_duty_cycle <= transaction_data[7:0];
                 default: ;
                 // do nothing for the other addresses
             endcase
