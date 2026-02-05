@@ -63,11 +63,7 @@ always @(posedge clk or negedge rst_n) begin
             end
         end
 
-        if (nCS_risingedge) begin
-            
-        end
-
-        if (!transaction_sent && transaction_complete && transaction_data[15]) begin // if write and also transaction finished
+        if (nCS_risingedge && !transaction_sent && transaction_complete && transaction_data[15]) begin // if write and also transaction finished
             case (transaction_data[14:8])
                 7'd0: en_reg_out_7_0 <= transaction_data[7:0];
                 7'd1: en_reg_out_15_8 <= transaction_data[7:0];
